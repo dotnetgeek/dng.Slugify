@@ -6,6 +6,17 @@
     <Description>dng.Slugify is a simple class library that will create search engine friendly URL slugs.
 </Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/dotnetgeek/dng.Slugify</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/dotnetgeek/dng.Slugify</PackageProjectUrl>
+    <PackageTags>c# Slugify SEO search engine friendly URL</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
