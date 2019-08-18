@@ -1,0 +1,12 @@
+###############################################################################
+# Set default behavior to automatically normalize line endings.
+###############################################################################
+* text=crlf
+
+*.sln        text eol=crlf
+*.csproj     text eol=crlf
+*.config	 text eol=crlf
+*.cake		 text eol=crlf
+
+*.sln       merge=binary
+*.csproj    merge=binary
