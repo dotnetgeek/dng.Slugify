@@ -84,7 +84,9 @@ Task("Publish")
         });
     });
 
-Task("Push").IsDependentOn("Publish").Does(()=> {
+Task("Push")
+	.IsDependentOn("Publish")
+	.Does(()=> {
 
     var nugetServer = EnvironmentVariable("nuget-server") ?? "";
     var nugetApiKey = EnvironmentVariable("nuget-apikey") ?? "";
