@@ -7,9 +7,11 @@ namespace dng.Slugify.Tests
         [Trait("Project", "dng.Slugify.SlugGenerator")]
         [Theory(DisplayName = "Should generate valid url")]
         [InlineData("Der Vater und der Sohn", "der-vater-und-der-sohn")]
-        [InlineData("Die Väter mit den Söhnen", "die-vaeter-mit-den-soehnen")]
+        [InlineData("Die Väter möchten mit den Söhnen", "die-vaeter-moechten-mit-den-soehnen")]
         [InlineData("Macht das Spiel Spaß?", "macht-das-spiel-spass")]
         [InlineData("Das Spiel macht Spaß!", "das-spiel-macht-spass")]
+        [InlineData("Das--Spiel-macht gute Laune", "das-spiel-macht-gute-laune")]
+        [InlineData("Das macht Spaß.", "das-macht-spass")]
         [InlineData("§ Das ist % \"eine\" Url § mit $ 'Sonderzeichen' !", "das-ist-eine-url-mit-sonderzeichen")]
         public void ShouldGenerateValidUrl(
             string input,
