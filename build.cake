@@ -1,11 +1,35 @@
+#addin "Cake.Figlet&version=2.0.1"
+#addin nuget:?package=Cake.MinVer&version=1.0.1
 
 var target = Argument("target", "Default");
-var artifactsDir = "./artifacts"; 
-var testResultDir = artifactsDir + "/test-results";
+var configuration = Argument("configuration", "Release");
+var publishDir = Directory (Argument("publishDir", EnvironmentVariable("BUILD_PUBLISH") ?? "./publish"));; 
+var testResultDir = Directory(publishDir) + Directory("test-results");
 
-//////////////////////////////////////////////////////////////////////
-// TASKS
-//////////////////////////////////////////////////////////////////////
+
+DotNetCoreBuildSettings dotNetCoreBuildSettings; 
+DotNetCoreMSBuildSettings msBuildSettings;
+
+Setup(context =>
+{
+    var version = MinVer(settings => settings.WithMinimumMajorMinor("1.0"));
+
+    Information(Figlet("dng.Slugify"));
+    Information($"Configuration: {configuration}");
+    Information($"Version: {version.Version}");
+
+    msBuildSettings = new DotNetCoreMSBuildSettings()
+        .SetFileVersion(version.FileVersion)
+        .SetInformationalVersion(version.AssemblyVersion.ToString())
+        .SetVersion(version.Version.ToString());
+
+    dotNetCoreBuildSettings = new DotNetCoreBuildSettings
+    {
+        NoRestore = true,
+        Configuration = configuration,
+        MSBuildSettings = msBuildSettings
+    };
+});
 
 Task("Clean")
     .Does(() =>
@@ -14,15 +38,14 @@ Task("Clean")
 	CleanDirectories("./src/**/bin");
 	CleanDirectories("./tests/**/bin");
 	CleanDirectories("./tests/**/obj");
-	CleanDirectories(artifactsDir);
-    CleanDirectories(testResultDir);
+	CleanDirectory(publishDir);
 });
 
 Task("Prepare")
  .IsDependentOn("Clean")
 .Does(()=> 
 {
-    CreateDirectory(artifactsDir);
+    //CreateDirectory(artifactsDir);
 });
 
 Task("Restore-NuGet-Packages")
@@ -41,15 +64,7 @@ Task("Build")
     .IsDependentOn("Restore-NuGet-Packages")
     .Does(() =>
 {
-    var projects = GetFiles("./**/*.csproj");
-    foreach(var project in projects)
-    {
-        DotNetCoreBuild(
-            project.GetDirectory().FullPath, 
-            new DotNetCoreBuildSettings {
-                Configuration = "Release"
-            });
-    }
+DotNetCoreBuild("./dng.Slugify.sln", dotNetCoreBuildSettings);
 });
 
 Task("Test")
@@ -65,7 +80,7 @@ Task("Test")
                     args.Append("--logger ")
                     .Append("trx;LogFileName=" +
                         System.IO.Path.Combine(
-                            MakeAbsolute(Directory(artifactsDir)).FullPath, 
+                            MakeAbsolute(publishDir).FullPath, 
                             project.GetFilenameWithoutExtension().FullPath + ".trx"))
         });
     }
@@ -75,14 +90,19 @@ Task("Test")
 
 Task("Publish")
     .IsDependentOn("Test")
-    .Does(() => {
-        DotNetCorePack("./src/dng.Slugify", new DotNetCorePackSettings
-        {
-            Configuration = "Release",
-            OutputDirectory = artifactsDir,
-            NoBuild = true
-        });
+    .Does(() => 
+{
+    Information("Publish Directory: {0}", MakeAbsolute(publishDir));
+    var publishDirBuild = Directory(publishDir) + Directory("build");
+    DotNetCorePack("./src/dng.Slugify", new DotNetCorePackSettings
+    {
+        NoBuild = false,
+        NoDependencies = true,
+        Configuration = configuration,
+        OutputDirectory = MakeAbsolute(publishDirBuild)
+
     });
+});
 
 Task("Push")
 	.IsDependentOn("Publish")
@@ -92,14 +112,14 @@ Task("Push")
     var nugetApiKey = EnvironmentVariable("nuget-apikey") ?? "";
     if (string.IsNullOrEmpty(nugetServer))
     {
-        Console.Write("Nuget-Server not definied." + System.Environment.NewLine);
+        Error("Nuget-Server not definied.");
         return;
     }
 
-    var packages = GetFiles("./artifacts/*.nupkg");
+    var packages = GetFiles($"{publishDir}/**/*.nupkg");
     foreach(var package in packages)
     {
-        Console.Write(package);
+        Information($"NuGet Package {package} found to push");
         NuGetPush(package, new NuGetPushSettings {
             Source = nugetServer,
             ApiKey = nugetApiKey
