@@ -1,7 +1,9 @@
 ﻿using System.Globalization;
 using System.Linq;
-using static System.String;
+
 using dng.Slugify.Extensions;
+
+using static System.String;
 
 namespace dng.Slugify
 {

@@ -10,7 +10,7 @@ namespace dng.Slugify.Tests
         [InlineData("férias", "ferias")]
         [InlineData("э ю я", "e yu ya")]
         [InlineData("ф х ц ч ш щ", "f kh ts ch sh shch")]
-        [InlineData("ä ö ü ß Ä Ö Ü ẞ" , "ae oe ue ss Ae Oe Ue Ss")]
+        [InlineData("ä ö ü ß Ä Ö Ü ẞ", "ae oe ue ss Ae Oe Ue Ss")]
         [InlineData("ß ẞ § $ % & ! \" # '", "ss Ss § $ % & ! \" # '")]
         public void ShouldUnidecodeCharacterCorrectly(
             string input,
