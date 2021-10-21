@@ -7,7 +7,7 @@ using static System.String;
 
 namespace dng.Slugify
 {
-    public class SlugGenerator
+    public class SlugGenerator : ISlugGenerator
     {
         public string Generate(
             string input)
