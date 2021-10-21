@@ -4,4 +4,4 @@ branches:
   only:
   - master
 build_script:
-- ps: .\build.ps1 -target Push
+- ps: .\build.ps1 -target Publish
