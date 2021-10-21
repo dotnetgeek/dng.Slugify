@@ -17,8 +17,8 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.x
-    - name: Install dotnet-format tool
-      run: dotnet tool install minver-cli
+    - name: dotnet tool restore
+      run: dotnet tool restore
     - name: Run the Cake script
       uses: cake-build/cake-action@v1
       with:
