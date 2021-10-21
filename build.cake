@@ -13,17 +13,21 @@ DotNetCoreMSBuildSettings msBuildSettings;
 
 Setup(context =>
 {
-    var version = MinVer(settings => settings.WithMinimumMajorMinor("1.0"));
+    var version = MinVer(settings => settings.WithMinimumMajorMinor("1.0").WithTagPrefix("v"));
 
     Information(Figlet("dng.Slugify"));
     Information($"Configuration: {configuration}");
     Information($"Version: {version.Version}");
+    Information($"FileVersion: {version.FileVersion}");
+    Information($"AssemblyVersion: {version.AssemblyVersion}");
+    Information($"PackageVersion: {version.PackageVersion}");
+    
 
     msBuildSettings = new DotNetCoreMSBuildSettings()
         .SetFileVersion(version.FileVersion)
         .SetInformationalVersion(version.AssemblyVersion.ToString())
         .SetVersion(version.Version.ToString())
-            .WithProperty("PackageVersion", version.Version.ToString());
+        .WithProperty("PackageVersion", version.PackageVersion.ToString());
 
     dotNetCoreBuildSettings = new DotNetCoreBuildSettings
     {
@@ -104,8 +108,8 @@ Task("Create-NuGet-Package")
 Task("Push-To-NuGet")
 	.Does(()=> {
 
-    var nugetServer = EnvironmentVariable("nuget-server") ?? "";
-    var nugetApiKey = EnvironmentVariable("nuget-apikey") ?? "";
+    var nugetServer = EnvironmentVariable("nuget_server") ?? "";
+    var nugetApiKey = EnvironmentVariable("nuget_apikey") ?? "";
 
     if (string.IsNullOrEmpty(nugetServer))
     {
