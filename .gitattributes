@@ -1,7 +1,13 @@
 ###############################################################################
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
-* text=crlf
+
+# general
+* text=auto eol=crlf
+*.cs text eol=crlf
+*.cake text eol=lf
+.gitlab-ci.yml text eol=lf
+build.sh text eol=lf
 
 *.sln        text eol=crlf
 *.csproj     text eol=crlf
@@ -10,3 +16,7 @@
 
 *.sln       merge=binary
 *.csproj    merge=binary
+
+# binary
+*.exe binary
+*.[dD][lL][lL] binary

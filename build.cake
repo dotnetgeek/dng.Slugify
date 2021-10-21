@@ -1,11 +1,12 @@
 #addin "Cake.Figlet&version=2.0.1"
 #addin nuget:?package=Cake.MinVer&version=1.0.1
+#addin nuget:?package=Cake.Coverlet&version=2.5.4
 
 var target = Argument("target", "Default");
 var configuration = Argument("configuration", "Release");
 var publishDir = Directory (Argument("publishDir", EnvironmentVariable("BUILD_PUBLISH") ?? "./publish"));; 
-var testResultDir = Directory(publishDir) + Directory("test-results");
-
+var publishNuPkgDir = Directory(publishDir) + Directory("nupkg");
+var publishTestReportsDir = Directory(publishDir) + Directory("test-results");
 
 DotNetCoreBuildSettings dotNetCoreBuildSettings; 
 DotNetCoreMSBuildSettings msBuildSettings;
@@ -21,11 +22,11 @@ Setup(context =>
     msBuildSettings = new DotNetCoreMSBuildSettings()
         .SetFileVersion(version.FileVersion)
         .SetInformationalVersion(version.AssemblyVersion.ToString())
-        .SetVersion(version.Version.ToString());
+        .SetVersion(version.Version.ToString())
+            .WithProperty("PackageVersion", version.Version.ToString());
 
     dotNetCoreBuildSettings = new DotNetCoreBuildSettings
     {
-        NoRestore = true,
         Configuration = configuration,
         MSBuildSettings = msBuildSettings
     };
@@ -41,15 +42,7 @@ Task("Clean")
 	CleanDirectory(publishDir);
 });
 
-Task("Prepare")
- .IsDependentOn("Clean")
-.Does(()=> 
-{
-    //CreateDirectory(artifactsDir);
-});
-
 Task("Restore-NuGet-Packages")
-    .IsDependentOn("Prepare")
     .Does(() =>
 {
     DotNetCoreRestore("./",new DotNetCoreRestoreSettings
@@ -61,55 +54,59 @@ Task("Restore-NuGet-Packages")
 });
 
 Task("Build")
-    .IsDependentOn("Restore-NuGet-Packages")
     .Does(() =>
 {
-DotNetCoreBuild("./dng.Slugify.sln", dotNetCoreBuildSettings);
+    DotNetCoreBuild("./dng.Slugify.sln", dotNetCoreBuildSettings);
 });
 
 Task("Test")
-    .IsDependentOn("Build")
     .Does(() =>
 {
+    var coverletSettings = new CoverletSettings {
+        CollectCoverage = true,
+        CoverletOutputFormat = CoverletOutputFormat.opencover | CoverletOutputFormat.cobertura,
+        CoverletOutputDirectory = publishTestReportsDir, //MakeAbsolute(publishTestReportsDir).FullPath,
+        CoverletOutputName = $"codecover"
+    };
+
     var projects = GetFiles("./tests/**/*.Tests.csproj");
     foreach(var project in projects)
     {
-        Console.Write(project);
-        DotNetCoreTest (project.ToString(), new DotNetCoreTestSettings  {
-            ArgumentCustomization = args =>
-                    args.Append("--logger ")
-                    .Append("trx;LogFileName=" +
-                        System.IO.Path.Combine(
-                            MakeAbsolute(publishDir).FullPath, 
-                            project.GetFilenameWithoutExtension().FullPath + ".trx"))
-        });
+        var testSettings = new DotNetCoreTestSettings  {
+                ArgumentCustomization = args =>
+                        args.Append("--logger ")
+                        .Append("trx;LogFileName=" +
+                            System.IO.Path.Combine(
+                                MakeAbsolute(Directory(publishTestReportsDir)).FullPath,
+                                project.GetFilenameWithoutExtension().FullPath + ".trx"))
+        };
+
+        DotNetCoreTest (project.ToString(), testSettings, coverletSettings);
     }
-    
 });
 
 
-Task("Publish")
-    .IsDependentOn("Test")
+Task("Create-NuGet-Package")
     .Does(() => 
 {
     Information("Publish Directory: {0}", MakeAbsolute(publishDir));
-    var publishDirBuild = Directory(publishDir) + Directory("build");
-    DotNetCorePack("./src/dng.Slugify", new DotNetCorePackSettings
+  //  var publishDirBuild = Directory(publishDir) + Directory("build");
+    DotNetCorePack("./src/dng.Slugify/dng.Slugify.csproj", new DotNetCorePackSettings
     {
-        NoBuild = false,
-        NoDependencies = true,
         Configuration = configuration,
-        OutputDirectory = MakeAbsolute(publishDirBuild)
-
+        OutputDirectory = publishNuPkgDir,
+        MSBuildSettings = msBuildSettings
     });
+
+    Information("NuGet Package created.");
 });
 
-Task("Push")
-	.IsDependentOn("Publish")
+Task("Push-To-NuGet")
 	.Does(()=> {
 
     var nugetServer = EnvironmentVariable("nuget-server") ?? "";
     var nugetApiKey = EnvironmentVariable("nuget-apikey") ?? "";
+
     if (string.IsNullOrEmpty(nugetServer))
     {
         Error("Nuget-Server not definied.");
@@ -127,8 +124,30 @@ Task("Push")
     }
 });
 
-Task("Default").IsDependentOn("Test");
+Task("Default")
+    .IsDependentOn("Clean")
+    .IsDependentOn("Restore-NuGet-Packages")
+    .IsDependentOn("Build");
 
-Task("PushPackage").IsDependentOn("Push");
+Task("build-and-test")
+    .IsDependentOn("Clean")
+    .IsDependentOn("Restore-NuGet-Packages")
+    .IsDependentOn("Build")
+    .IsDependentOn("Test");
+
+Task("Pack")
+    .IsDependentOn("Clean")
+    .IsDependentOn("Restore-NuGet-Packages")
+    .IsDependentOn("Build")
+    .IsDependentOn("Test")
+    .IsDependentOn("Create-NuGet-Package");
+
+Task("Publish")
+    .IsDependentOn("Clean")
+    .IsDependentOn("Restore-NuGet-Packages")
+    .IsDependentOn("Build")
+    .IsDependentOn("Test")
+    .IsDependentOn("Create-NuGet-Package")
+    .IsDependentOn("Push-To-NuGet");
 
 RunTarget(target);
