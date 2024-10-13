@@ -1,35 +1,41 @@
-#addin "Cake.Figlet&version=2.0.1"
-#addin nuget:?package=Cake.MinVer&version=1.0.1
-#addin nuget:?package=Cake.Coverlet&version=2.5.4
+#addin nuget:?package=Cake.MinVer&version= 4.0.0
+#addin nuget:?package=Cake.Coverlet&version=4.0.1
 
 var target = Argument("target", "Default");
 var configuration = Argument("configuration", "Release");
 var publishDir = Directory (Argument("publishDir", EnvironmentVariable("BUILD_PUBLISH") ?? "./publish"));; 
 var publishNuPkgDir = Directory(publishDir) + Directory("nupkg");
 var publishTestReportsDir = Directory(publishDir) + Directory("test-results");
+var solutionPath = "./dng.Slugify.sln";
 
-DotNetCoreBuildSettings dotNetCoreBuildSettings; 
-DotNetCoreMSBuildSettings msBuildSettings;
+DotNetBuildSettings dotNetbuildSettings; 
+DotNetMSBuildSettings msBuildSettings;
 
 Setup(context =>
 {
-    var version = MinVer(settings => settings.WithMinimumMajorMinor("1.0").WithTagPrefix("v"));
+    var version = MinVer(settings => 
+    settings.WithMinimumMajorMinor("1.0")
+            .WithTagPrefix("v")
+            .WithVerbosity(MinVerVerbosity.Trace)
+            .WithDefaultPreReleasePhase("preview"));
 
-    Information(Figlet("dng.Slugify"));
+    Information("dng.Slugify");
     Information($"Configuration: {configuration}");
     Information($"Version: {version.Version}");
     Information($"FileVersion: {version.FileVersion}");
     Information($"AssemblyVersion: {version.AssemblyVersion}");
-    Information($"PackageVersion: {version.PackageVersion}");
+    Information($"Major: {version.Major}");
+    Information($"Minor: {version.Minor}");
+    Information($"Patch: {version.Patch}");
     
 
-    msBuildSettings = new DotNetCoreMSBuildSettings()
+    msBuildSettings = new DotNetMSBuildSettings()
         .SetFileVersion(version.FileVersion)
         .SetInformationalVersion(version.AssemblyVersion.ToString())
         .SetVersion(version.Version.ToString())
         .WithProperty("PackageVersion", version.PackageVersion.ToString());
 
-    dotNetCoreBuildSettings = new DotNetCoreBuildSettings
+    dotNetbuildSettings = new DotNetBuildSettings
     {
         Configuration = configuration,
         MSBuildSettings = msBuildSettings
@@ -44,13 +50,21 @@ Task("Clean")
 	CleanDirectories("./tests/**/bin");
 	CleanDirectories("./tests/**/obj");
 	CleanDirectory(publishDir);
+
+    var settings = new DotNetCleanSettings
+    {
+        Configuration = configuration
+    };
+
+    DotNetClean(solutionPath, settings);
 });
 
 Task("Restore-NuGet-Packages")
     .Does(() =>
 {
-    DotNetCoreRestore("./",new DotNetCoreRestoreSettings
-    {
+
+    DotNetRestore(solutionPath, new DotNetRestoreSettings
+    {        
         Sources = new [] {
             "https://api.nuget.org/v3/index.json"
         }
@@ -60,7 +74,7 @@ Task("Restore-NuGet-Packages")
 Task("Build")
     .Does(() =>
 {
-    DotNetCoreBuild("./dng.Slugify.sln", dotNetCoreBuildSettings);
+    DotNetBuild(solutionPath, dotNetbuildSettings);
 });
 
 Task("Test")
@@ -76,7 +90,7 @@ Task("Test")
     var projects = GetFiles("./tests/**/*.Tests.csproj");
     foreach(var project in projects)
     {
-        var testSettings = new DotNetCoreTestSettings  {
+        var testSettings = new DotNetTestSettings  {
                 ArgumentCustomization = args =>
                         args.Append("--logger ")
                         .Append("trx;LogFileName=" +
@@ -85,7 +99,7 @@ Task("Test")
                                 project.GetFilenameWithoutExtension().FullPath + ".trx"))
         };
 
-        DotNetCoreTest (project.ToString(), testSettings, coverletSettings);
+        DotNetTest (project.ToString(), testSettings, coverletSettings);
     }
 });
 
@@ -94,8 +108,8 @@ Task("Create-NuGet-Package")
     .Does(() => 
 {
     Information("Publish Directory: {0}", MakeAbsolute(publishDir));
-  //  var publishDirBuild = Directory(publishDir) + Directory("build");
-    DotNetCorePack("./src/dng.Slugify/dng.Slugify.csproj", new DotNetCorePackSettings
+
+    DotNetPack("./src/dng.Slugify/dng.Slugify.csproj", new DotNetPackSettings
     {
         Configuration = configuration,
         OutputDirectory = publishNuPkgDir,
