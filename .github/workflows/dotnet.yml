@@ -13,16 +13,55 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v2
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 5.0.x
+        dotnet-version: 8.0.x
+
     - name: dotnet tool restore
       run: dotnet tool restore
-    - name: Run the Cake script
+
+    - name: Build the project
       uses: cake-build/cake-action@v1
       with:
         script-path: build.cake
-        target: build-and-test
+        target: Build
         arguments: |
-          configuration: Release
+          configuration=Release
+
+    - name: Test the project
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: build.cake
+        target: Test
+        arguments: |
+          configuration=Release
+
+    - name: Pack the project
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: build.cake
+        target: Pack
+        arguments: |
+          configuration=Release
+
+    - name: Publish NuGet package
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      uses: cake-build/cake-action@v1
+      with:
+        script-path: build.cake
+        target: Publish
+        arguments: |
+          configuration=Release
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        nuget_server: https://api.nuget.org/v3/index.json
